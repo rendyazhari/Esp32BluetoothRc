@@ -43,7 +43,8 @@ void setup() {
 }
 
 void setupBluetooth() {
-  SerialBT.begin("ESP32test"); //Bluetooth device name
+  SerialBT.register_callback(bluetoothCallback);
+  SerialBT.begin("Car RC 2"); //Bluetooth device name
   Serial.println("The device started, now you can pair it with bluetooth!");
 }
 
@@ -61,7 +62,7 @@ void setupPwm() {
   ledcAttachPin(M_RIGHT_B, CHANNEL_RIGHT_B);
 }
 
-void nRfCallback(char* message) {
+void dataParsing(char* message) {
   int8_t startIndex, endIndex;
   char strLeft[32];
   char strRight[32];
@@ -107,11 +108,10 @@ void loop() {
     for (uint8_t i = 0; i < length; i++) {
       text[count++] = (char) SerialBT.read();
     };
-    // Serial.println();
     if(text[count - 1] == '\n') {
       text[count - 1] = '\0';
       count = 0;
-      nRfCallback(text);
+      dataParsing(text);
     }
   }
 }
@@ -134,5 +134,22 @@ void controlMotor(boolean isRight, int16_t speed) {
       ledcWrite(CHANNEL_LEFT_B, 255 + speed);
       ledcWrite(CHANNEL_LEFT_A, 255);
     }
+  }
+}
+
+void brakeMotor() {
+  controlMotor(true, 0);
+  controlMotor(false, 0);
+}
+
+void bluetoothCallback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param){
+  if(event == ESP_SPP_SRV_OPEN_EVT){
+    Serial.println("Client Connected");
+    brakeMotor();
+  }
+ 
+  if(event == ESP_SPP_CLOSE_EVT ){
+    Serial.println("Client disconnected");
+    brakeMotor();
   }
 }
